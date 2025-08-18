@@ -1,5 +1,5 @@
 import { GetServerSideProps } from 'next'
-import { ChangeEvent, useState } from 'react'
+import { ChangeEvent, useState, useEffect } from 'react'
 import styles from './styles.module.css'
 import Head from 'next/head'
 
@@ -8,10 +8,62 @@ import { getSession } from 'next-auth/react'
 import { Textarea } from '../../components/textarea'
 import {FaShare, FaTrash} from 'react-icons/fa'
 
-export default function Dashboard(){
+import { db } from '../../services/firebaseConnection'
+
+import { addDoc, collection, query, orderBy, where, onSnapshot } from 'firebase/firestore'
+
+interface DashboardProps{
+  user: {
+    email: string
+  }
+}
+
+interface TaskProps{
+  id: string;
+  created: Date;
+  public: boolean;
+  task: string;
+  user: string;
+}
+
+export default function Dashboard({ user }: DashboardProps){
 
   const [input, setInput] = useState("")
   const [publicTask, setPublicTask] = useState(false)
+  const [tasks, setTasks] = useState<TaskProps[]>([])
+
+  useEffect(() => {
+
+    const getTasks = async () => {
+
+      const tasksRef = collection(db, 'tasks')
+      const q = query(
+        tasksRef,
+        orderBy("created", "desc"),
+        where('user', '==', user?.email)
+      )
+
+      onSnapshot(q, (snapshot) => {
+        let list = [] as TaskProps[];
+
+        snapshot.forEach((doc) => {
+          list.push({
+            id: doc.id,
+            task: doc.data().task,
+            created: doc.data().created,
+            public: doc.data().public,
+            user: doc.data().user
+          })
+        })
+
+        setTasks(list)
+      })
+
+    }
+
+    getTasks()
+
+  }, [user?.email])
 
   const handleChangePublic = (event: ChangeEvent<HTMLInputElement>) => {
 
@@ -21,13 +73,26 @@ export default function Dashboard(){
 
   }
 
-  const handleRegisterTask = (event: ChangeEvent<HTMLFormElement>) => {
+  const handleRegisterTask = async (event: ChangeEvent<HTMLFormElement>) => {
      event.preventDefault()
 
      if(input === "") return
 
-     alert(input)
-     alert(publicTask)
+     try {
+      
+      await addDoc(collection(db, 'tasks'), {
+        task: input,
+        created: new Date(),
+        user: user?.email,
+        public: publicTask
+      })
+
+      setInput('')
+      setPublicTask(false)
+
+     } catch (err) {
+       console.log('Algum erro', err)
+     }
   }
 
     return(
@@ -67,7 +132,43 @@ export default function Dashboard(){
              <section className={styles.taskContainer}>
                <h1>Minhas tarefas</h1>
 
-               <article className={styles.task}>
+               {
+                tasks.map((task) => (
+
+                  <article key={task.id} className={styles.task}>
+
+                    {task.public && 
+                    
+                     <div className={styles.tagContainer}>
+                    
+                    <label className={styles.tag}>
+                      PUBLICO
+                    </label>
+                    <button className={styles.shareBtn}>
+                    <FaShare 
+                     size={22} 
+                     color='#3183ff'
+                     />
+                    </button> 
+                   </div>
+
+                    } 
+
+                  <div className={styles.taskContent}>
+                    <p>{task.task}</p>
+                    <button className={styles.trashBtn}>
+                       <FaTrash
+                         size={24}
+                         color='#ea3140'
+                        />
+                    </button>
+                  </div>
+               </article>
+
+                ))
+               }
+
+               {/* <article className={styles.task}>
                   <div className={styles.tagContainer}>
                     <label className={styles.tag}>
                       PUBLICO
@@ -89,7 +190,7 @@ export default function Dashboard(){
                         />
                     </button>
                   </div>
-               </article>
+               </article> */}
                
 
              </section>
@@ -114,7 +215,11 @@ export const getServerSideProps: GetServerSideProps = async ({ req }) => {
   }
 
   return{
-    props: {}
+    props: {
+      user:{
+        email: session?.user?.email
+      }
+    }
   }
 
 }
