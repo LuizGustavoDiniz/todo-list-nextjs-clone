@@ -10,7 +10,9 @@ import {FaShare, FaTrash} from 'react-icons/fa'
 
 import { db } from '../../services/firebaseConnection'
 
-import { addDoc, collection, query, orderBy, where, onSnapshot } from 'firebase/firestore'
+import { addDoc, collection, query, orderBy, where, onSnapshot, doc, deleteDoc } from 'firebase/firestore'
+
+import Link from 'next/link'
 
 interface DashboardProps{
   user: {
@@ -95,6 +97,26 @@ export default function Dashboard({ user }: DashboardProps){
      }
   }
 
+  /*
+    método para copiar um texto ao clicar, é assíncrono  
+    await navigator.clipboard.writeText(
+      `${process.env.NEXT_PUBLIC_URL}task/${id}`
+    )
+  */
+
+  const handleShare = async (id: string) => {
+    await navigator.clipboard.writeText(
+      `${process.env.NEXT_PUBLIC_URL}task/${id}`
+    )
+
+    alert('Url copiada com sucesso!')
+  }
+
+  const handleDeleteTask = async (id: string) => {
+     const docRef = doc(db, 'tasks', id)
+     await deleteDoc(docRef)
+  }
+
     return(
         <div className={styles.container}>
           <Head>
@@ -144,7 +166,7 @@ export default function Dashboard({ user }: DashboardProps){
                     <label className={styles.tag}>
                       PUBLICO
                     </label>
-                    <button className={styles.shareBtn}>
+                    <button className={styles.shareBtn} onClick={() => handleShare(task.id)}>
                     <FaShare 
                      size={22} 
                      color='#3183ff'
@@ -155,8 +177,16 @@ export default function Dashboard({ user }: DashboardProps){
                     } 
 
                   <div className={styles.taskContent}>
-                    <p>{task.task}</p>
-                    <button className={styles.trashBtn}>
+
+                     {task.public ? (
+                      <Link href={`/task/${task.id}`}>
+                        <p>{task.task}</p>
+                      </Link>
+                     ) : (
+                        <p>{task.task}</p>
+                     )}
+
+                    <button className={styles.trashBtn} onClick={() => handleDeleteTask(task.id)}>
                        <FaTrash
                          size={24}
                          color='#ea3140'
@@ -168,29 +198,6 @@ export default function Dashboard({ user }: DashboardProps){
                 ))
                }
 
-               {/* <article className={styles.task}>
-                  <div className={styles.tagContainer}>
-                    <label className={styles.tag}>
-                      PUBLICO
-                    </label>
-                   <button className={styles.shareBtn}>
-                    <FaShare 
-                     size={22} 
-                     color='#3183ff'
-                     />
-                   </button> 
-                  </div> 
-
-                  <div className={styles.taskContent}>
-                    <p>Minha primeira Tarefa</p>
-                    <button className={styles.trashBtn}>
-                       <FaTrash
-                         size={24}
-                         color='#ea3140'
-                        />
-                    </button>
-                  </div>
-               </article> */}
                
 
              </section>
