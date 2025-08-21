@@ -1,3 +1,5 @@
+import { ChangeEvent, FormEvent, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { GetServerSideProps } from 'next'
 import  Head  from "next/head"
 import styles from './styles.module.css'
@@ -9,15 +11,119 @@ import {
   collection,
   query,
   where,
-  getDoc
+  getDoc,
+  addDoc
 } from 'firebase/firestore'
 
-export default function Task(){
+import { Textarea } from '../../components/textarea'
+
+interface TaskProps {
+
+  item:{
+    task: string
+    public: boolean
+    created: string
+    user: string
+    taskId: string
+  }
+}
+
+/*
+então na funçao getServerSideProps onde fazemos codigos no servidor
+sempre devemos retornar algum dado o final dela é com
+
+return{
+        props: {
+           algo: item
+        }
+    }
+
+então o final dela é sempre devolver algo, assim como um servidor mesmo, servir
+então sempre faremos algo dentro dela e devolveremos o resultado
+
+e o que devolvermos conseguimos pegar como prop no componente principal por exemplo
+
+const App = ({ item vindo do getServerSideProps}) => {
+
+}
+
+export const getServerSideProps: GetServerSideProps = async ({ params }) => {
+  
+let item = {
+  ola: 'mundo'
+}
+
+return{
+        props: {
+           item: item
+        }
+    }
+
+}
+*/
+
+export default function Task({ item }: TaskProps){
+
+  const { data: session } = useSession()
+
+  const [input, setInput] = useState('')
+
+  const handleComment = async (event: FormEvent) => {
+    event.preventDefault()
+
+    if(input === '')return;
+
+    if(!session?.user?.email || !session?.user?.name)return
+
+    try {
+      
+      const docRef = await addDoc(collection(db, 'comments'), {
+        comment: input,
+        created: new Date(),
+        user: session?.user?.email,
+        session: session?.user?.name,
+        taskId: item?.taskId
+      })
+
+      setInput('')
+
+    } catch (error) {
+      
+    }
+
+  }
+
     return(
         <div className={styles.container}>
           <Head>
              <title>Detalhes da tarefa</title>
           </Head>
+
+           <main className={styles.main}>
+             <h1>Tarefa</h1>
+
+             <article className={styles.task}>
+              <p>{item.task}</p>
+             </article>
+           </main>
+
+           <section className={styles.commentsContainer}>
+            <h2>Deixar comentário</h2>
+
+            <form onSubmit={handleComment}>
+              <Textarea
+               placeholder='Digite seu comentário'
+               value={input}
+               onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setInput(event.target.value)}
+              />
+
+              <button 
+              type='submit' 
+              className={styles.btn} 
+              disabled={!session?.user ? true : false}>
+                Enviar comentário</button>
+            </form>
+           </section>
         </div>
     )
 }
@@ -77,11 +183,9 @@ export const getServerSideProps: GetServerSideProps = async ({ params }) => {
         taskId: id
     }
 
-    console.log(task)
-
     return{
         props: {
-
+           item: task
         }
     }
 
